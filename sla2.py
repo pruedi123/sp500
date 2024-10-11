@@ -1,4 +1,4 @@
-import pandas as pd
+ import pandas as pd
 import streamlit as st
 import plotly.graph_objs as go
 from datetime import datetime
@@ -7,11 +7,36 @@ from dateutil.relativedelta import relativedelta
 # Title for the Streamlit app
 st.title("Standard and Poor's 500 Index Data")
 
-# Load your local Excel file directly (without upload)
+# Load your local Excel file directly
 df = pd.read_excel('data.xlsx')
 
+# Ensure 'Date Fraction' column is of type float
+df['Date Fraction'] = df['Date Fraction'].astype(float)
+
+# Function to convert 'Date Fraction' to datetime
+def date_fraction_to_datetime(date_fraction):
+    year = int(date_fraction)
+    fractional_part = date_fraction - year
+    month = int(round(fractional_part * 12 + 0.5))
+    # Handle edge cases where month might be 0 or 13
+    if month < 1:
+        month = 1
+    elif month > 12:
+        month = 12
+    date_obj = datetime(year, month, 1)
+    return date_obj
+
+# Apply the function to create a new 'Date' column
+df['Date'] = df['Date Fraction'].apply(date_fraction_to_datetime)
+
+# Define the last valid date
+last_good_date = datetime(2024, 9, 1)
+
+# Exclude dates beyond September 2024
+df = df[df['Date'] <= last_good_date]
+
 # Extract unique years from the 'Date' column
-years = sorted(list(set(df['Date'].apply(lambda x: int(x)))))  # Extract years as integers
+years = sorted(df['Date'].dt.year.unique())
 
 # Month mapping: Display full names but convert to numeric month strings
 month_mapping = {
@@ -41,6 +66,7 @@ date_options = [
 selected_range = st.sidebar.selectbox('Select Time Period', date_options, index=0)  # Default to 'Custom Period'
 
 # Set the latest date as September 2024
+end_date_default = datetime(2024, 9, 1)
 end_year_default = 2024
 end_month_default = '09'  # September
 
@@ -56,7 +82,7 @@ end_month_name = None
 # Widgets for selecting begin and end dates (only for custom period)
 if selected_range == 'Custom Period':
     begin_year = st.sidebar.selectbox('Select the beginning year', options=years, index=years.index(1984))
-    begin_month_name = st.sidebar.selectbox('Select the beginning month', options=month_names, index=7)  # August is at index 7
+    begin_month_name = st.sidebar.selectbox('Select the beginning month', options=month_names, index=9)  # October is at index 9
 
     end_year = st.sidebar.selectbox('Select the ending year', options=years, index=years.index(end_year_default))
     end_month_name = st.sidebar.selectbox('Select the ending month', options=month_names, index=8)  # September is at index 8
@@ -68,33 +94,31 @@ run_button = st.sidebar.button('Run Selection')
 if run_button:
     if selected_range != 'Custom Period':
         # Fixed end date
-        end_year = end_year_default
-        end_month = end_month_default
+        end_date_obj = end_date_default
 
         # Determine the begin date based on the selection
-        end_date_obj = datetime(end_year, int(end_month), 1)
         if selected_range == 'Last 1 Year':
-            begin_date_obj = end_date_obj - relativedelta(years=1)
+            begin_date_obj = end_date_obj - relativedelta(years=1) + relativedelta(months=1)
         elif selected_range == 'Last 3 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=3)
+            begin_date_obj = end_date_obj - relativedelta(years=3) + relativedelta(months=1)
         elif selected_range == 'Last 5 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=5)
+            begin_date_obj = end_date_obj - relativedelta(years=5) + relativedelta(months=1)
         elif selected_range == 'Last 10 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=10)
+            begin_date_obj = end_date_obj - relativedelta(years=10) + relativedelta(months=1)
         elif selected_range == 'Last 15 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=15)
+            begin_date_obj = end_date_obj - relativedelta(years=15) + relativedelta(months=1)
         elif selected_range == 'Last 20 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=20)
+            begin_date_obj = end_date_obj - relativedelta(years=20) + relativedelta(months=1)
         elif selected_range == 'Last 25 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=25)
+            begin_date_obj = end_date_obj - relativedelta(years=25) + relativedelta(months=1)
         elif selected_range == 'Last 30 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=30)
+            begin_date_obj = end_date_obj - relativedelta(years=30) + relativedelta(months=1)
         elif selected_range == 'Last 35 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=35)
+            begin_date_obj = end_date_obj - relativedelta(years=35) + relativedelta(months=1)
         elif selected_range == 'Last 40 Years':
-            begin_date_obj = end_date_obj - relativedelta(years=40)
+            begin_date_obj = end_date_obj - relativedelta(years=40) + relativedelta(months=1)
         elif selected_range == 'Since WWII':
-            begin_date_obj = datetime(1945, 9, 1)  # September 1945
+            begin_date_obj = datetime(1945, 10, 1)  # Start from October 1945
 
         # Extract begin_year and begin_month from begin_date_obj
         begin_year = begin_date_obj.year
@@ -127,31 +151,41 @@ if run_button:
         begin_date_obj = datetime(int(begin_year), int(begin_month), 1)
         end_date_obj = datetime(int(end_year), int(end_month), 1)
 
+    # Adjust the end date by adding one month for period calculation
+    adjusted_end_date = end_date_obj + relativedelta(months=1)
+
     # Calculate the period in years and months
-    period = relativedelta(end_date_obj, begin_date_obj)
+    period = relativedelta(adjusted_end_date, begin_date_obj)
     st.write(f"Period Beginning {begin_month_name} {begin_year} and Ending {end_month_name} {end_year} - {period.years} years and {period.months} months")
 
-    # Filter data between begin_date and end_date
-    begin_float = float(f"{begin_year}.{begin_month}")
-    end_float = float(f"{end_year}.{end_month}")
-    df_filtered = df[(df['Date'] >= begin_float) & (df['Date'] <= end_float)]
+    # Filter data between begin_date and end_date, including both
+    df_filtered = df[(df['Date'] >= begin_date_obj) & (df['Date'] <= end_date_obj)]
 
     # Check if the filtering was successful
     if df_filtered.empty:
         st.error("No data available for the selected date range.")
         st.stop()
 
-    # Proceed with the rest of your code...
+    # Display the filtered DataFrame
+    st.subheader("Filtered Data")
+    st.write(df_filtered)
 
     # Calculate cumulative function for a specific column
     def calculate_cumulative(df, column_name):
         cumulative = [1]  # Start with $1
         for i in range(1, len(df)):
-            percentage_change = (df[column_name].iloc[i] / df[column_name].iloc[i-1]) - 1
+            prev_value = df[column_name].iloc[i-1]
+            current_value = df[column_name].iloc[i]
+
+            if prev_value == 0 or pd.isnull(prev_value):
+                percentage_change = 0
+            else:
+                percentage_change = (current_value / prev_value) - 1
             cumulative.append(cumulative[-1] * (1 + percentage_change))
         return cumulative
 
     # Calculate cumulative values
+    df_filtered = df_filtered.reset_index(drop=True)  # Reset index after filtering
     df_filtered['Cumulative Nominal Dividends'] = calculate_cumulative(df_filtered, 'Nominal Dividends')
     df_filtered['Cumulative CPI'] = calculate_cumulative(df_filtered, 'CPI')
     df_filtered['Cumulative Real Dividends'] = calculate_cumulative(df_filtered, 'Real Dividend')
@@ -176,7 +210,7 @@ if run_button:
             st.error(f"Error: {col} column was not created.")
             st.stop()
 
-        # Get the final values for all cumulative series
+    # Get the final values for all cumulative series
     final_nominal_dividends = df_filtered['Cumulative Nominal Dividends'].iloc[-1]
     final_cpi = df_filtered['Cumulative CPI'].iloc[-1]
     final_real_dividends = df_filtered['Cumulative Real Dividends'].iloc[-1]
@@ -187,13 +221,15 @@ if run_button:
 
     # Function to calculate CAGR
     def calculate_cagr(start_value, end_value, years):
-        if start_value > 0:
+        if start_value > 0 and years > 0:
             return ((end_value / start_value) ** (1 / years) - 1) * 100
         else:
-            return None  # Avoid division by zero
+            return None  # Avoid division by zero or negative years
 
     # Calculate the number of years for CAGR
     years = period.years + period.months / 12.0
+    if years == 0:
+        years = 0.01  # Prevent division by zero for very short periods
 
     # Calculate CAGR for relevant columns
     cagr_composite_price = calculate_cagr(1, final_composite_price, years)
@@ -210,7 +246,7 @@ if run_button:
     def format_result(value, label):
         # Calculate the increase percentage
         increase_percent = (value - 1) * 100
-        
+
         if value < 1:
             percent_lower = (1 - value) * 100
             return f"{label}: (is {percent_lower:.1f}% lower)"
@@ -317,5 +353,3 @@ if run_button:
 
     # Show real data chart
     st.plotly_chart(fig_real)
-
-    ###################################
