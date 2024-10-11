@@ -167,8 +167,8 @@ if run_button:
         st.stop()
 
     # Display the filtered DataFrame
-    st.subheader("Filtered Data")
-    st.write(df_filtered)
+    # st.subheader("Filtered Data")
+    # st.write(df_filtered)
 
     # Calculate cumulative function for a specific column
     def calculate_cumulative(df, column_name):
