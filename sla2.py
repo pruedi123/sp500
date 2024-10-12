@@ -251,7 +251,7 @@ if run_button:
             percent_lower = (1 - value) * 100
             return f"{label}: (is {percent_lower:.1f}% lower)"
         else:
-            return f"{label}: rose from beginning value of 1 to {value:.1f} (Increased by {increase_percent:.1f}%)"
+            return f"{label}: rose from beginning value of 1 to {value:.2f} (Increased by {increase_percent:.1f}%)"
 
     # Display the final values in Streamlit for Nominal Data
     st.subheader("Final Values for Nominal Data")
